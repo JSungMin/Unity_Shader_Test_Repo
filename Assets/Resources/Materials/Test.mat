@@ -62,7 +62,7 @@ Material:
     - _Cull: 2
     - _Cutoff: 0.5
     - _DstBlend: 0
-    - _Effect: 7.99
+    - _Effect: 0.06
     - _EnvironmentReflections: 1
     - _GlossMapScale: 0
     - _Glossiness: 0
@@ -70,9 +70,9 @@ Material:
     - _Metallic: 0
     - _OcclusionStrength: 1
     - _QueueOffset: 0
-    - _Radius: 0.91
+    - _Radius: 0.64
     - _ReceiveShadows: 1
-    - _Sample: 4
+    - _Sample: 32
     - _Smoothness: 0.5
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1

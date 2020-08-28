@@ -6,7 +6,6 @@
         _BlurTex ("BlurMap", 2D) = "black" {}
         _Sample  ("Sample", Range(4, 32)) = 16
         _Effect  ("Effect", float) = 1
-        _Radius  ("Radius", float) = 0.1
     }
     SubShader
     {
@@ -18,9 +17,7 @@
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            // make fog work
-            #pragma multi_compile_fog
-
+            
             #include "UnityCG.cginc"
 
             struct appdata
@@ -38,11 +35,24 @@
 
             sampler2D _MainTex;
             sampler2D _BlurTex;
+            sampler2D _CameraDepthTexture;
+            sampler2D _CameraDepthNormalsTexture;
+            
             float4 _MainTex_ST;
             float4 _BlurTex_ST;
             float _Sample;
             float _Effect;
-            float _Radius;
+
+            float3 DecodeNormal(float4 enc)
+            {
+                float kScale = 1.7777;
+                float3 nn = enc.xyz*float3(2*kScale,2*kScale,0) + float3(-kScale,-kScale,1);
+                float g = 2.0 / dot(nn.xyz,nn.xyz);
+                float3 n;
+                n.xy = g*nn.xy;
+                n.z = g-1;
+                return n;
+            }
             
             v2f vert (appdata v)
             {
@@ -58,25 +68,26 @@
                 // sample the texture
                 fixed4 col = fixed4(0,0,0,0);
                 //  R = X, G = Y => RG = UV offset
-                float4 blurOffset = tex2D(_BlurTex, i.uv);
-                float4 blurVector = 1 - float4(blurOffset.r, blurOffset.g,0,0);
-                float dist = length(blurVector) + 1;
-                float2 dir = normalize(blurVector) * 10;
+                float4 oOffset = tex2D(_BlurTex, i.uv);
+                float2 oDir = (oOffset.rg);
+                float oIntensity = oOffset.b;
+                oIntensity = pow(oIntensity, 3);
+                float pIntensity = oIntensity;
+                float2 pDir = oDir;
+                float3 screenNormal = DecodeNormal(tex2D(_CameraDepthNormalsTexture, i.uv));
+                float screenDepth = tex2D(_CameraDepthTexture, i.uv).r;
+                
                 for(int j = 0; j < _Sample; j++)
                 {
-                    float scale = (j / _Sample);
-                    float2 offset = dir * scale;
-                    //  가운대 집중형
-                    //col += tex2D(_MainTex, i.uv + ((i.uv + float2(-.5,-.5)) * (offset)) * .5);
-                    float2 subDir = tex2D(_BlurTex, i.uv + (offset) * .02).rg;
-                    subDir = smoothstep(0, 1, (1 - subDir));
-                    dist = length(subDir) + 1;
-                    col += tex2D(_MainTex, i.uv + ((i.uv - subDir) * (offset*0.02)) * _Effect / dist);
+                    float scale = (j/_Sample);
+                    float2 cCoord = i.uv + (.5 - i.uv) * pDir*pIntensity*scale*_Effect*.5;
+                    float4 offset = tex2D(_BlurTex, cCoord);
+                    pDir = (offset.rg);
+                    pIntensity = offset.b;
+                    pIntensity = pow(pIntensity, 3);
+                    col += tex2D(_MainTex, cCoord);
                 }
-                //col = tex2D(_MainTex, i.uv);
-                col /= (_Sample);
-                // apply fog
-                //(i.fogCoord, col);
+                col /= _Sample;
                 return col;
             }
             ENDCG
